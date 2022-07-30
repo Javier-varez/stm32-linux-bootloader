@@ -1,0 +1,6 @@
+.cache
+.tools
+compile_commands.json
+build
+cmake-build-*
+.idea
