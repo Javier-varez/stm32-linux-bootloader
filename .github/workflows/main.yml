@@ -1,0 +1,49 @@
+name: stm32-linux-bootloader
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  clang_format:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+    - name: clang-format lint
+      uses: DoozyX/clang-format-lint-action@v0.14
+      with:
+        clangFormatVersion: 14
+
+  clang-tidy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run static analysis for C++ project
+      uses: JacobDomagala/StaticAnalysis@v0.0.4
+      with:
+        cmake_args: -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/cortex-m7.cmake -DCMAKE_SYSTEM_NAME=Generic
+        init_script: bootstrap.sh
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install dependencies
+      run: ./bootstrap.sh
+    - name: Build with CMake
+      uses: lukka/run-cmake@v3
+      with:
+        cmakeListsOrSettingsJson: 'CMakeListsTxtAdvanced'
+        cmakeListsTxtPath: '${{ github.workspace }}/CMakeLists.txt'
+        cmakeAppendedArgs: '-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/cortex-m7.cmake -DCMAKE_SYSTEM_NAME=Generic'
+        buildDirectory: '${{ github.workspace }}/build'
