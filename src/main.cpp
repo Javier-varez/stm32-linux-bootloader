@@ -24,19 +24,19 @@ extern "C" Postform::Rtt::ControlBlock<1u, 0u> _SEGGER_RTT{
 Postform::Rtt::Transport transport{&_SEGGER_RTT.up_channels[0]};
 Postform::SerialLogger<Postform::Rtt::Transport> logger{&transport};
 
-Hw::Rcc rcc{Hw::MmappedRegs{0x4002'3800}};
-Hw::GpioBank gpioBankI{Hw::MmappedRegs{0x4002'2000}, 16};
-
 int main() {
   SysTick& systick = SysTick::getInstance();
   systick.init(App::SYSTICK_CLK_HZ);
+
+  Hw::Rcc rcc{Hw::MmappedRegs{0x4002'3800}};
+  Hw::GpioBank gpioBankI{Hw::MmappedRegs{0x4002'2000}, 16};
 
   LOG_DEBUG(&logger, "Hello world!");
   LOG_INFO(&logger, "Hello world! (Again!)");
   LOG_WARNING(&logger, "Hello world! (And again!)");
 
   rcc.enable_gpio_bank_I();
-  auto pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, Hw::GpioState::High);
+  Hw::OutputGpioPin pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, Hw::GpioState::High);
 
   while (true) {
     systick.delay(1'000);

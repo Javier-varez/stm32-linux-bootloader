@@ -48,6 +48,7 @@ using LockReg = Register<std::uint32_t, BlockOffset{0x1c}, LockField, LockKeyFie
 // Gpio alternate function low register
 using AfLowField = IndexedField<std::uint32_t, GpioAltFunc, RegOffset{0}, RegNumBits{4}, NumFields{8}>;
 using AfLowReg = Register<std::uint32_t, BlockOffset{0x20}, AfLowField>;
+// Gpio alternate function high register
 using AfHighField = IndexedField<std::uint32_t, GpioAltFunc, RegOffset{0}, RegNumBits{4}, NumFields{8}>;
 using AfHighReg = Register<std::uint32_t, BlockOffset{0x24}, AfHighField>;
 

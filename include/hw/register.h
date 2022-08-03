@@ -19,7 +19,7 @@ enum class RegIndex : std::size_t {};
 
 namespace detail {
 template <std::integral T>
-consteval inline T generateMask(RegOffset offset, RegNumBits num_bits) noexcept {
+consteval inline T generate_mask(RegOffset offset, RegNumBits num_bits) noexcept {
   const size_t first_bit = static_cast<std::size_t>(offset);
   const size_t last_bit = static_cast<std::size_t>(offset) + static_cast<std::size_t>(num_bits);
 
@@ -35,6 +35,7 @@ template <typename T>
 concept field = requires(T t) {
   requires std::integral<std::remove_cvref_t<decltype(T::mask)>>;
   requires std::same_as<std::remove_cvref_t<decltype(T::offset)>, RegOffset>;
+  { T::get_full_mask() } -> std::same_as<typename T::ParentType>;
 };
 
 template <typename T>
@@ -52,7 +53,9 @@ struct FieldDesc final {
   using ParentType = T;
 
   constexpr static RegOffset offset = Offset;
-  constexpr static ParentType mask = detail::generateMask<ParentType>(Offset, NumBits);
+  constexpr static ParentType mask = detail::generate_mask<ParentType>(Offset, NumBits);
+
+  [[nodiscard]] static consteval ParentType get_full_mask() noexcept { return mask; }
 
   static_assert(static_cast<std::size_t>(NumBits) > 0u);
   static_assert(static_cast<std::size_t>(Offset) + static_cast<std::size_t>(NumBits) <= sizeof(T) * CHAR_BIT);
@@ -65,9 +68,25 @@ struct IndexedField final {
   using ParentType = T;
 
   constexpr static RegOffset offset = Offset;
-  constexpr static ParentType mask = detail::generateMask<ParentType>(Offset, NumBits);
+  constexpr static ParentType mask = detail::generate_mask<ParentType>(Offset, NumBits);
   constexpr static FieldStride stride = Stride;
   constexpr static NumFields num_fields = Numfields;
+
+  [[nodiscard]] static consteval ParentType offset_for_index(std::size_t index) noexcept {
+    return static_cast<std::size_t>(Stride) * index;
+  }
+
+  [[nodiscard]] static consteval ParentType mask_for_index(std::size_t index) noexcept {
+    return mask << offset_for_index(index);
+  }
+
+  [[nodiscard]] static consteval ParentType get_full_mask() noexcept {
+    ParentType mask{0};
+    for (std::size_t i = 0; i < static_cast<std::size_t>(Numfields); i++) {
+      mask |= mask_for_index(i);
+    }
+    return mask;
+  }
 
   static_assert(static_cast<std::size_t>(NumBits) > 0u);
   static_assert(static_cast<std::size_t>(Offset) + static_cast<std::size_t>(NumBits) <= sizeof(T) * CHAR_BIT);
@@ -77,7 +96,17 @@ struct IndexedField final {
 template <std::integral T, BlockOffset Offset, detail::field... Fields>
 requires((std::same_as<T, typename Fields::ParentType> && ...)) class Register final {
  private:
-  // TODO(ja): Check field overlap
+  template <detail::field Field>
+  [[nodiscard]] static consteval bool validate_single_field() noexcept {
+    size_t count = (((Field::get_full_mask() & Fields::get_full_mask()) != 0) + ...);
+    return count == 1;
+  }
+
+  [[nodiscard]] static consteval bool validate_all_fields() noexcept {
+    return (validate_single_field<Fields>() && ...);
+  }
+
+  static_assert(validate_all_fields(), "Detected overlap between the provided fields");
 
   template <Ditto::one_of<Fields...> Field, Ditto::one_of<Fields...>... OtherFields>
   static T write_fields(T value, const typename Field::InnerType first_field,
