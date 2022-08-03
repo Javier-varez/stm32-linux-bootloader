@@ -36,17 +36,11 @@ int main() {
   LOG_WARNING(&logger, "Hello world! (And again!)");
 
   rcc.enable_gpio_bank_I();
-  Hw::GpioState state = Hw::GpioState::High;
-  auto pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, state);
+  auto pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, Hw::GpioState::High);
 
   while (true) {
     systick.delay(1'000);
     LOG_ERROR(&logger, "Hello world! (Yet again!)");
-    if (state == Hw::GpioState::High) {
-      state = Hw::GpioState::Low;
-    } else {
-      state = Hw::GpioState::High;
-    }
-    pinI1.set_state(state);
+    pinI1.toggle_state();
   }
 }

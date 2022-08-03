@@ -11,24 +11,20 @@ enum class Mode {
   Analog = 3,
 };
 
-enum class OutputType { PushPull = 0, OpenDrain = 1 };
-enum class OutputSpeed { Low = 0, Medium = 1, High = 2, VeryHigh = 3 };
-enum class PullResistorConfig { Disabled = 0, PullUp = 1, PullDown = 2 };
-
 // Mode register
 using ModeField = IndexedField<std::uint32_t, Mode, RegOffset{0}, RegNumBits{2}, NumFields{16}>;
 using ModeReg = Register<std::uint32_t, BlockOffset{0x00u}, ModeField>;
 
 // Output type register
-using OutputTypeField = IndexedField<std::uint32_t, OutputType, RegOffset{0}, RegNumBits{1}, NumFields{16}>;
+using OutputTypeField = IndexedField<std::uint32_t, GpioOutputType, RegOffset{0}, RegNumBits{1}, NumFields{16}>;
 using OutputTypeReg = Register<std::uint32_t, BlockOffset{0x04}, OutputTypeField>;
 
 // Output speed register
-using OutputSpeedField = IndexedField<std::uint32_t, OutputSpeed, RegOffset{0}, RegNumBits{2}, NumFields{16}>;
+using OutputSpeedField = IndexedField<std::uint32_t, GpioOutputSpeed, RegOffset{0}, RegNumBits{2}, NumFields{16}>;
 using OutputSpeedReg = Register<std::uint32_t, BlockOffset{0x08}, OutputSpeedField>;
 
 // Pull resistor register
-using PuPdField = IndexedField<std::uint32_t, PullResistorConfig, RegOffset{0}, RegNumBits{2}, NumFields{16}>;
+using PuPdField = IndexedField<std::uint32_t, GpioPullResistorConfig, RegOffset{0}, RegNumBits{2}, NumFields{16}>;
 using PuPdReg = Register<std::uint32_t, BlockOffset{0x0C}, PuPdField>;
 
 // Input data register
@@ -151,6 +147,27 @@ void GpioBank::set_pin_state(GpioPinNumber number, GpioState state) noexcept {
     } else {
       reg.template write<gpio_regs::BitSetField>(RegIndex{static_cast<std::size_t>(number)}, true);
     }
+  });
+}
+
+void GpioBank::set_pin_output_type(GpioPinNumber pin_number, GpioOutputType type) noexcept {
+  auto reg_bank = gpio_regs::get_reg_bank(m_regs);
+  reg_bank.get_register<gpio_regs::OutputTypeReg>().read_modify_write([=](auto reg) {
+    reg.template write<gpio_regs::OutputTypeField>(RegIndex{static_cast<std::size_t>(pin_number)}, type);
+  });
+}
+
+void GpioBank::set_pin_output_speed(GpioPinNumber pin_number, GpioOutputSpeed speed) noexcept {
+  auto reg_bank = gpio_regs::get_reg_bank(m_regs);
+  reg_bank.get_register<gpio_regs::OutputSpeedReg>().read_modify_write([=](auto reg) {
+    reg.template write<gpio_regs::OutputSpeedField>(RegIndex{static_cast<std::size_t>(pin_number)}, speed);
+  });
+}
+
+void GpioBank::set_pin_pull_resistor_config(GpioPinNumber pin_number, GpioPullResistorConfig config) noexcept {
+  auto reg_bank = gpio_regs::get_reg_bank(m_regs);
+  reg_bank.get_register<gpio_regs::PuPdReg>().read_modify_write([=](auto reg) {
+    reg.template write<gpio_regs::PuPdField>(RegIndex{static_cast<std::size_t>(pin_number)}, config);
   });
 }
 

@@ -18,6 +18,10 @@ enum class GpioState {
   High,
 };
 
+enum class GpioOutputType { PushPull = 0, OpenDrain = 1 };
+enum class GpioOutputSpeed { Low = 0, Medium = 1, High = 2, VeryHigh = 3 };
+enum class GpioPullResistorConfig { Disabled = 0, PullUp = 1, PullDown = 2 };
+
 class GpioBank {
  public:
   explicit GpioBank(MmappedRegs mmapped_regs, std::uint32_t num_pins) noexcept;
@@ -38,6 +42,10 @@ class GpioBank {
 
   [[nodiscard]] GpioState get_pin_state(GpioPinNumber pin_number) const noexcept;
   void set_pin_state(GpioPinNumber pin_number, GpioState state) noexcept;
+  void set_pin_output_type(GpioPinNumber pin_number, GpioOutputType type) noexcept;
+  void set_pin_output_speed(GpioPinNumber pin_number, GpioOutputSpeed speed) noexcept;
+  void set_pin_pull_resistor_config(GpioPinNumber pin_number, GpioPullResistorConfig config) noexcept;
+
   void release(GpioPinNumber pin_number) noexcept;
 
   friend class GpioPin;
@@ -68,11 +76,16 @@ class GpioPin {
 
   virtual ~GpioPin() noexcept { release(); }
 
-  void release() noexcept {
+  inline void release() noexcept {
     if (is_valid()) {
       m_bank->release(m_pin_number);
       m_bank = nullptr;
     }
+  }
+
+  inline void set_pull_resistor_config(GpioPullResistorConfig config) noexcept {
+    DITTO_VERIFY(is_valid());
+    return m_bank->set_pin_pull_resistor_config(m_pin_number, config);
   }
 
   [[nodiscard]] explicit operator bool() const noexcept { return m_bank != nullptr; }
@@ -95,7 +108,7 @@ class InputGpioPin : public GpioPin {
   InputGpioPin(InputGpioPin&&) noexcept = default;
   InputGpioPin& operator=(InputGpioPin&&) noexcept = default;
 
-  [[nodiscard]] GpioState get_state() const noexcept {
+  [[nodiscard]] inline GpioState get_state() const noexcept {
     DITTO_VERIFY(is_valid());
     return m_bank->get_pin_state(m_pin_number);
   }
@@ -117,9 +130,27 @@ class OutputGpioPin final : public GpioPin {
     return m_bank->get_pin_state(m_pin_number);
   }
 
-  void set_state(GpioState state) noexcept {
+  inline void set_state(GpioState state) noexcept {
     DITTO_VERIFY(is_valid());
     return m_bank->set_pin_state(m_pin_number, state);
+  }
+
+  inline void toggle_state() noexcept {
+    if (get_state() == GpioState::High) {
+      set_state(GpioState::Low);
+    } else {
+      set_state(GpioState::High);
+    }
+  }
+
+  inline void set_output_type(GpioOutputType type) noexcept {
+    DITTO_VERIFY(is_valid());
+    return m_bank->set_pin_output_type(m_pin_number, type);
+  }
+
+  inline void set_output_speed(GpioOutputSpeed speed) noexcept {
+    DITTO_VERIFY(is_valid());
+    return m_bank->set_pin_output_speed(m_pin_number, speed);
   }
 };
 
@@ -134,9 +165,19 @@ class AltFuncGpioPin final : public GpioPin {
   AltFuncGpioPin(AltFuncGpioPin&&) noexcept = default;
   AltFuncGpioPin& operator=(AltFuncGpioPin&&) noexcept = default;
 
-  [[nodiscard]] GpioState get_state() const noexcept {
+  [[nodiscard]] inline GpioState get_state() const noexcept {
     DITTO_VERIFY(is_valid());
     return m_bank->get_pin_state(m_pin_number);
+  }
+
+  inline void set_output_type(GpioOutputType type) noexcept {
+    DITTO_VERIFY(is_valid());
+    return m_bank->set_pin_output_type(m_pin_number, type);
+  }
+
+  inline void set_output_speed(GpioOutputSpeed speed) noexcept {
+    DITTO_VERIFY(is_valid());
+    return m_bank->set_pin_output_speed(m_pin_number, speed);
   }
 };
 
