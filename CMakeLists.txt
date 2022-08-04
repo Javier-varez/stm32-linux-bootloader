@@ -19,8 +19,7 @@ add_executable(
     src/main.cpp
     src/postform_config.cpp
     src/ditto_assert.cpp
-    src/hw/gpio.cpp
-    src/hw/rcc.cpp)
+    src/hw/gpio.cpp)
 
 target_include_directories(
     ${APPLICATION_NAME}
