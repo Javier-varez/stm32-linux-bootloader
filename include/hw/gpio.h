@@ -85,7 +85,7 @@ class GpioPin {
       release();
       m_bank = other.m_bank;
       m_pin_number = other.m_pin_number;
-      other.release();
+      other.m_bank = nullptr;
     }
     return *this;
   }
