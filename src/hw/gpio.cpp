@@ -1,5 +1,7 @@
 #include "hw/gpio.h"
 
+#include "ditto/assert.h"
+
 namespace Hw {
 
 namespace gpio_regs {
@@ -180,6 +182,47 @@ void GpioBank::release(GpioPinNumber number) noexcept {
   });
 
   m_pin_taken.fetch_or(1u << static_cast<std::size_t>(number));
+}
+
+Hw::GpioBank gpioBankA{Hw::MmappedRegs{0x4002'0000}, 16};
+Hw::GpioBank gpioBankB{Hw::MmappedRegs{0x4002'0400}, 16};
+Hw::GpioBank gpioBankC{Hw::MmappedRegs{0x4002'0800}, 16};
+Hw::GpioBank gpioBankD{Hw::MmappedRegs{0x4002'0C00}, 16};
+Hw::GpioBank gpioBankE{Hw::MmappedRegs{0x4002'1000}, 16};
+Hw::GpioBank gpioBankF{Hw::MmappedRegs{0x4002'1400}, 16};
+Hw::GpioBank gpioBankG{Hw::MmappedRegs{0x4002'1800}, 16};
+Hw::GpioBank gpioBankH{Hw::MmappedRegs{0x4002'1C00}, 16};
+Hw::GpioBank gpioBankI{Hw::MmappedRegs{0x4002'2000}, 16};
+Hw::GpioBank gpioBankJ{Hw::MmappedRegs{0x4002'2400}, 16};
+Hw::GpioBank gpioBankK{Hw::MmappedRegs{0x4002'2800}, 8};
+
+GpioBank& get_gpio_bank(GpioBankId id) {
+  switch (id) {
+    case GpioBankId::A:
+      return gpioBankA;
+    case GpioBankId::B:
+      return gpioBankB;
+    case GpioBankId::C:
+      return gpioBankC;
+    case GpioBankId::D:
+      return gpioBankD;
+    case GpioBankId::E:
+      return gpioBankE;
+    case GpioBankId::F:
+      return gpioBankF;
+    case GpioBankId::G:
+      return gpioBankG;
+    case GpioBankId::H:
+      return gpioBankH;
+    case GpioBankId::I:
+      return gpioBankI;
+    case GpioBankId::J:
+      return gpioBankJ;
+    case GpioBankId::K:
+      return gpioBankK;
+  }
+
+  DITTO_UNIMPLEMENTED();
 }
 
 }  // namespace Hw

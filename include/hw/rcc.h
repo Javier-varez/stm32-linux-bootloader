@@ -77,12 +77,26 @@ using SwitchField = FieldDesc<std::uint32_t, SystemClockSwitch, RegOffset{0}, Re
 using ClockConfigReg = Register<std::uint32_t, BlockOffset{0x08u}, Apb2PreField, Apb1PreField, AhbPreField,
                                 SwitchStatusField, SwitchField>;
 
+using GpioAClkEn = FieldDesc<std::uint32_t, bool, RegOffset{0}, RegNumBits{1}>;
+using GpioBClkEn = FieldDesc<std::uint32_t, bool, RegOffset{1}, RegNumBits{1}>;
+using GpioCClkEn = FieldDesc<std::uint32_t, bool, RegOffset{2}, RegNumBits{1}>;
+using GpioDClkEn = FieldDesc<std::uint32_t, bool, RegOffset{3}, RegNumBits{1}>;
+using GpioEClkEn = FieldDesc<std::uint32_t, bool, RegOffset{4}, RegNumBits{1}>;
+using GpioFClkEn = FieldDesc<std::uint32_t, bool, RegOffset{5}, RegNumBits{1}>;
+using GpioGClkEn = FieldDesc<std::uint32_t, bool, RegOffset{6}, RegNumBits{1}>;
+using GpioHClkEn = FieldDesc<std::uint32_t, bool, RegOffset{7}, RegNumBits{1}>;
 using GpioIClkEn = FieldDesc<std::uint32_t, bool, RegOffset{8}, RegNumBits{1}>;
-using Ahb1Enr = Register<std::uint32_t, BlockOffset{0x30u}, GpioIClkEn>;
+using GpioJClkEn = FieldDesc<std::uint32_t, bool, RegOffset{9}, RegNumBits{1}>;
+using GpioKClkEn = FieldDesc<std::uint32_t, bool, RegOffset{10}, RegNumBits{1}>;
+using Ahb1Enr = Register<std::uint32_t, BlockOffset{0x30u}, GpioAClkEn, GpioBClkEn, GpioCClkEn, GpioDClkEn, GpioEClkEn,
+                         GpioFClkEn, GpioGClkEn, GpioHClkEn, GpioIClkEn, GpioJClkEn, GpioKClkEn>;
+
+using FmcEn = FieldDesc<std::uint32_t, bool, RegOffset{0}, RegNumBits{1}>;
+using Ahb3Enr = Register<std::uint32_t, BlockOffset{0x38u}, FmcEn>;
 
 using PwrEn = FieldDesc<std::uint32_t, bool, RegOffset{28}, RegNumBits{1}>;
 using Apb1Enr = Register<std::uint32_t, BlockOffset{0x40u}, PwrEn>;
 
-using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb1Enr, Apb1Enr>;
+using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb1Enr, Ahb3Enr, Apb1Enr>;
 
 }  // namespace Hw::Rcc

@@ -10,8 +10,24 @@ namespace Hw {
 
 enum class GpioPinNumber : std::uint32_t {};
 
-// TODO(javier-varez): Populate alternate functions
-enum class GpioAltFunc : std::uint32_t {};
+enum class GpioAltFunc : std::uint32_t {
+  AF0_SYS,
+  AF1_TIM1_2,
+  AF2_TIM3_4_5,
+  AF3_TIM8_9_10_11_LPTIM1_CEC,
+  AF4_I2C1_2_3_4_CEC,
+  AF5_SPI1_2_3_4_5_6,
+  AF6_SPI3_SAI1,
+  AF7_SPI2_3_USART1_2_3_UART5_SPDIFRX,
+  AF8_SAI2_USART6_UART4_5_7_8_SPDIFRX,
+  AF9_CAN1_2_TIM12_13_14_QUADSPI_LCD,
+  AF10_SAI2_QUADSPI_OTG2HS_OTG1FS,
+  AF11_ETH_OTG1FS,
+  AF12_FMC_SDMMC1_OTG2FS,
+  AF13_DCMI,
+  AF14_LCD,
+  AF15_SYS,
+};
 
 enum class GpioState {
   Low = 0,
@@ -180,5 +196,9 @@ class AltFuncGpioPin final : public GpioPin {
     return m_bank->set_pin_output_speed(m_pin_number, speed);
   }
 };
+
+enum class GpioBankId { A, B, C, D, E, F, G, H, I, J, K };
+
+GpioBank& get_gpio_bank(GpioBankId id);
 
 }  // namespace Hw

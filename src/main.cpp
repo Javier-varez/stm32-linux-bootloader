@@ -5,6 +5,7 @@
 #include "hw/gpio.h"
 #include "hw/pwr.h"
 #include "hw/rcc.h"
+#include "hw/sdram.h"
 #include "postform/logger.h"
 #include "postform/rtt/rtt.h"
 #include "postform/rtt/transport.h"
@@ -25,6 +26,11 @@ extern "C" Postform::Rtt::ControlBlock<1u, 0u> _SEGGER_RTT{
 
 Postform::Rtt::Transport transport{&_SEGGER_RTT.up_channels[0]};
 Postform::SerialLogger<Postform::Rtt::Transport> logger{&transport};
+
+Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
+Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
+Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
+Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
 
 namespace {
 void enable_gpio_i_bank_clk(Hw::Rcc::RegBank& rcc_regs) noexcept {
@@ -102,13 +108,11 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
   while (clock_config_reg.read().read<Hw::Rcc::SwitchStatusField>() != Hw::Rcc::SystemClockSwitch::PLL)
     ;
 }
+
 }  // namespace
 
 int main() {
-  Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
-  Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
-  Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
-  Hw::GpioBank gpioBankI{Hw::MmappedRegs{0x4002'2000}, 16};
+  Hw::Sdram sdram;
 
   configure_system_clock(rcc_regs, flash_regs, pwr_regs);
 
@@ -119,12 +123,21 @@ int main() {
   LOG_INFO(&logger, "Hello world! (Again!)");
   LOG_WARNING(&logger, "Hello world! (And again!)");
 
+  Hw::GpioBank& gpioBankI = Hw::get_gpio_bank(Hw::GpioBankId::I);
+
   enable_gpio_i_bank_clk(rcc_regs);
   Hw::OutputGpioPin pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, Hw::GpioState::High);
+  DITTO_VERIFY(pinI1);
 
+  sdram.init(rcc_regs, fmc_regs);
+
+  int value = 0;
   while (true) {
     systick.delay(1'000);
     LOG_ERROR(&logger, "Hello world! (Yet again!)");
+    volatile int* sdram_base = (int*)0xC000'0000;
+    LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);
+    *sdram_base = value++;
     pinI1.toggle_state();
   }
 }
