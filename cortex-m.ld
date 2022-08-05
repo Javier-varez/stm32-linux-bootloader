@@ -13,7 +13,7 @@ SECTIONS
 		*(.text.__aeabi_memclr)
 		*(.text.memcpy)
 		*(.text.memset)
-	} > FLASH
+	} > FLASH_ITCM AT> FLASH
 
 	.text :
 	{
@@ -38,18 +38,18 @@ SECTIONS
  		*(.dtors)
 
 		KEEP(*(.eh_frame*))
-	} > FLASH
+	} > FLASH_ITCM AT> FLASH
 
 	.ARM.extab :
 	{
 		*(.ARM.extab* .gnu.linkonce.armextab.*)
-	} > FLASH
+	} > FLASH_ITCM AT> FLASH
 
 	__exidx_start = .;
 	.ARM.exidx :
 	{
 		*(.ARM.exidx* .gnu.linkonce.armexidx.*)
-	} > FLASH
+	} > FLASH_ITCM AT> FLASH
 	__exidx_end = .;
 
 	.data :
@@ -69,7 +69,6 @@ SECTIONS
 		KEEP(*(SORT(.init_array.*)))
 		KEEP(*(.init_array))
 		PROVIDE_HIDDEN (__init_array_end = .);
-
 
 		. = ALIGN(4);
 		/* finit data */
@@ -131,4 +130,3 @@ SECTIONS
 	/* Check if data + heap + stack exceeds RAM limit */
 	ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 }
-
