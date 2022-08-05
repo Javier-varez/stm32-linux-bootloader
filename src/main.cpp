@@ -142,3 +142,5 @@ int main() {
     LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);
   }
 }
+
+void operator delete(void*) { DITTO_UNIMPLEMENTED(); }
