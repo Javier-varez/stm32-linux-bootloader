@@ -126,7 +126,6 @@ void Sdram::save_pin(Pin pin, GpioBankId bank, GpioPinNumber pin_number) noexcep
   DITTO_VERIFY(af_pin);
   af_pin.set_output_speed(GpioOutputSpeed::VeryHigh);
   af_pin.set_output_type(GpioOutputType::PushPull);
-  af_pin.set_pull_resistor_config(GpioPullResistorConfig::PullUp);
   m_gpio_pins[static_cast<size_t>(pin)] = std::move(af_pin);
 }
 

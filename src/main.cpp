@@ -131,13 +131,14 @@ int main() {
 
   sdram.init(rcc_regs, fmc_regs);
 
+  volatile int* const sdram_base = std::bit_cast<int*>(0xC000'0000);
+
   int value = 0;
   while (true) {
     systick.delay(1'000);
-    LOG_ERROR(&logger, "Hello world! (Yet again!)");
-    volatile int* sdram_base = (int*)0xC000'0000;
-    LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);
-    *sdram_base = value++;
     pinI1.toggle_state();
+
+    *sdram_base = ++value;
+    LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);
   }
 }
