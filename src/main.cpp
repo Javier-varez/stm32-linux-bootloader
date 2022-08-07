@@ -83,8 +83,11 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
   configure_voltage_regulator(rcc_regs, power_regs);
 
   constexpr static uint8_t FLASH_WAIT_STATES = 7;
-  flash_regs.get_register<Hw::Flash::AccessCtrlReg>().read_modify_write(
-      [=](auto reg) { reg.template write<Hw::Flash::LatencyField>(FLASH_WAIT_STATES); });
+  flash_regs.get_register<Hw::Flash::AccessCtrlReg>().read_modify_write([=](auto reg) {
+    reg.template write<Hw::Flash::LatencyField>(FLASH_WAIT_STATES);
+    reg.template write<Hw::Flash::ArtEnField>(true);
+    reg.template write<Hw::Flash::PreFetchEnField>(true);
+  });
 
   while (!control_reg.read().read<Hw::Rcc::PllRdyField>())
     ;
