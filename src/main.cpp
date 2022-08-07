@@ -4,6 +4,7 @@
 #include "hw/flash.h"
 #include "hw/gpio.h"
 #include "hw/pwr.h"
+#include "hw/qspi_flash.h"
 #include "hw/rcc.h"
 #include "hw/sdram.h"
 #include "postform/logger.h"
@@ -31,6 +32,7 @@ Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
 Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
 Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
 Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
+Hw::QuadSpi::RegBank quadspi_regs{Hw::MmappedRegs{0xA000'1000}};
 
 namespace {
 void enable_gpio_i_bank_clk(Hw::Rcc::RegBank& rcc_regs) noexcept {
@@ -109,10 +111,25 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
     ;
 }
 
+extern "C" uint8_t qspi_data_bin[];
+extern "C" int qspi_data_bin_len;
+
+bool validate_qspi_data() noexcept {
+  volatile uint8_t* const qspi_base = std::bit_cast<uint8_t*>(0x9000'0000);
+  for (int i = 0; i < qspi_data_bin_len; i++) {
+    if (qspi_data_bin[i] != qspi_base[i]) {
+      LOG_ERROR(&logger, "Unexpected data at byte offset %d: [0x%hhx != 0x%hhx]", i, qspi_data_bin[i], qspi_base[i]);
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 int main() {
   Hw::Sdram sdram;
+  Hw::QspiFlash qspi_flash;
 
   configure_system_clock(rcc_regs, flash_regs, pwr_regs);
 
@@ -130,8 +147,11 @@ int main() {
   DITTO_VERIFY(pinI1);
 
   sdram.init(rcc_regs, fmc_regs);
+  qspi_flash.init(rcc_regs, quadspi_regs);
 
   volatile int* const sdram_base = std::bit_cast<int*>(0xC000'0000);
+
+  validate_qspi_data();
 
   int value = 0;
   while (true) {

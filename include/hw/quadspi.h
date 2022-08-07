@@ -124,8 +124,7 @@ namespace dlr {
 using DataLength = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, RegNumBits{32}>;
 }
 
-using DataLengthReg =
-    Register<std::uint32_t, BlockOffset{0x10}, fcr::TxError, fcr::TxComplete, fcr::StatusMatch, fcr::Timeout>;
+using DataLengthReg = Register<std::uint32_t, BlockOffset{0x10}, dlr::DataLength>;
 
 namespace ccr {
 using Instruction = FieldDesc<std::uint32_t, Instruction, RegOffset{0}, RegNumBits{8}>;

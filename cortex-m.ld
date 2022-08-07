@@ -120,6 +120,11 @@ SECTIONS
 		*(.stack*)
 	} > RAM
 
+    .qspi :
+    {
+        *(.qspi*)
+    } > QSPI_FLASH
+
 	/* Set stack top to end of RAM, and stack limit move down by
 	 * size of stack_dummy section */
 	__StackTop = ORIGIN(RAM) + LENGTH(RAM);

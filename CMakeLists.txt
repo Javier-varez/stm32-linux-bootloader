@@ -19,8 +19,10 @@ add_executable(
     src/postform_config.cpp
     src/ditto_assert.cpp
     src/startup.cpp
+    src/expected_data.c
     src/hw/gpio.cpp
-    src/hw/sdram.cpp)
+    src/hw/sdram.cpp
+    src/hw/qspi_flash.cpp)
 
 target_include_directories(
     ${APPLICATION_NAME}

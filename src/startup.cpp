@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "logger.h"
+
 volatile std::uint32_t* const CORE_DEBUG_DHCSR = reinterpret_cast<volatile std::uint32_t*>(0xE000EDF0UL);
 
 extern std::uint8_t __StackInit;
@@ -44,6 +46,8 @@ extern "C" __attribute__((noreturn)) void DefaultISR() {
   asm("mrs %[ipsr_reg], ipsr   \n" : [ipsr_reg] "=r"(exception_number));
 
   exception_number = exception_number - 16;
+
+  LOG_ERROR(&logger, "Reached default ISR number: %d", exception_number);
   if (*CORE_DEBUG_DHCSR & (1 << 0)) {
     // We trigger a breakpoint if we are debugging to warn the user
     // about the default ISR being reached.

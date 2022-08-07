@@ -91,12 +91,17 @@ using GpioKClkEn = FieldDesc<std::uint32_t, bool, RegOffset{10}, RegNumBits{1}>;
 using Ahb1Enr = Register<std::uint32_t, BlockOffset{0x30u}, GpioAClkEn, GpioBClkEn, GpioCClkEn, GpioDClkEn, GpioEClkEn,
                          GpioFClkEn, GpioGClkEn, GpioHClkEn, GpioIClkEn, GpioJClkEn, GpioKClkEn>;
 
+using QspiRst = FieldDesc<std::uint32_t, bool, RegOffset{1}, RegNumBits{1}>;
+using FmcRst = FieldDesc<std::uint32_t, bool, RegOffset{0}, RegNumBits{1}>;
+using Ahb3Rst = Register<std::uint32_t, BlockOffset{0x18u}, QspiRst, FmcRst>;
+
+using QspiEn = FieldDesc<std::uint32_t, bool, RegOffset{1}, RegNumBits{1}>;
 using FmcEn = FieldDesc<std::uint32_t, bool, RegOffset{0}, RegNumBits{1}>;
-using Ahb3Enr = Register<std::uint32_t, BlockOffset{0x38u}, FmcEn>;
+using Ahb3Enr = Register<std::uint32_t, BlockOffset{0x38u}, QspiEn, FmcEn>;
 
 using PwrEn = FieldDesc<std::uint32_t, bool, RegOffset{28}, RegNumBits{1}>;
 using Apb1Enr = Register<std::uint32_t, BlockOffset{0x40u}, PwrEn>;
 
-using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb1Enr, Ahb3Enr, Apb1Enr>;
+using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb3Rst, Ahb1Enr, Ahb3Enr, Apb1Enr>;
 
 }  // namespace Hw::Rcc
