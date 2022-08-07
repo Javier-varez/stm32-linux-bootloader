@@ -6,15 +6,15 @@
 
 namespace Hw {
 
-void Sdram::init(Hw::Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexcept {
-  configure_pins(rcc_regs);
-  configure_fmc(rcc_regs, fmc_regs);
+void Sdram::init() noexcept {
+  configure_pins();
+  configure_fmc();
 }
 
-void Sdram::configure_fmc(Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexcept {
-  rcc_regs.get_register<Rcc::Ahb3Enr>().read_modify_write([](auto reg) { reg.template write<Rcc::FmcEn>(true); });
+void Sdram::configure_fmc() noexcept {
+  m_rcc_regs.get_register<Rcc::Ahb3Enr>().read_modify_write([](auto reg) { reg.template write<Rcc::FmcEn>(true); });
 
-  fmc_regs.get_register<Fmc::SdramCr1>().write([](auto reg) {
+  m_fmc_regs.get_register<Fmc::SdramCr1>().write([](auto reg) {
     reg.template write<Fmc::sdcr::Nc>(Fmc::NumberOfColumnAddrBits::Bits8);
     reg.template write<Fmc::sdcr::Nr>(Fmc::NumberOfRowAddrBits::Bits12);
     reg.template write<Fmc::sdcr::Nb>(Fmc::NumInternalBanks::Four);
@@ -26,7 +26,7 @@ void Sdram::configure_fmc(Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexce
     reg.template write<Fmc::sdcr::Rpipe>(Fmc::ReadPipe::NoHclkDelay);
   });
 
-  fmc_regs.get_register<Fmc::SdramTr1>().write([](auto reg) {
+  m_fmc_regs.get_register<Fmc::SdramTr1>().write([](auto reg) {
     reg.template write<Fmc::sdtr::Tmrd>(1);
     reg.template write<Fmc::sdtr::Tras>(4);
     reg.template write<Fmc::sdtr::Trc>(6);
@@ -36,19 +36,18 @@ void Sdram::configure_fmc(Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexce
     reg.template write<Fmc::sdtr::Txsr>(7);
   });
 
-  send_command(fmc_regs, Fmc::CommandMode::ClockConfigEnable, 0, 0);
+  send_command(Fmc::CommandMode::ClockConfigEnable, 0, 0);
   SysTick::getInstance().delay(1);
-  send_command(fmc_regs, Fmc::CommandMode::PrechargeAll, 0, 0);
-  send_command(fmc_regs, Fmc::CommandMode::AutoRefresh, 7, 0);
-  send_command(fmc_regs, Fmc::CommandMode::LoadModeRegister, 0, 0x220);
+  send_command(Fmc::CommandMode::PrechargeAll, 0, 0);
+  send_command(Fmc::CommandMode::AutoRefresh, 7, 0);
+  send_command(Fmc::CommandMode::LoadModeRegister, 0, 0x220);
 
-  fmc_regs.get_register<Fmc::SdramRtr>().read_modify_write(
+  m_fmc_regs.get_register<Fmc::SdramRtr>().read_modify_write(
       [](auto reg) { reg.template write<Fmc::sdrtr::Count>(0x67e); });
 }
 
-void Sdram::send_command(Fmc::RegBank& fmc_regs, Fmc::CommandMode command, uint8_t autorefresh_num,
-                         uint16_t mode_reg) noexcept {
-  fmc_regs.get_register<Fmc::SdramCmr>().write([=](auto reg) {
+void Sdram::send_command(Fmc::CommandMode command, uint8_t autorefresh_num, uint16_t mode_reg) noexcept {
+  m_fmc_regs.get_register<Fmc::SdramCmr>().write([=](auto reg) {
     reg.template write<Fmc::sdcmr::Mode>(command);
     reg.template write<Fmc::sdcmr::Ctb1>(true);
     reg.template write<Fmc::sdcmr::Ctb2>(false);
@@ -58,7 +57,7 @@ void Sdram::send_command(Fmc::RegBank& fmc_regs, Fmc::CommandMode command, uint8
 
   constexpr static uint32_t TIMEOUT_MS = 100;
   uint32_t ticks = 0;
-  while (fmc_regs.get_register<Fmc::SdramSr>().read().read<Fmc::sdsr::Busy>()) {
+  while (m_fmc_regs.get_register<Fmc::SdramSr>().read().read<Fmc::sdsr::Busy>()) {
     SysTick::getInstance().delay(1);
     if (++ticks >= TIMEOUT_MS) {
       break;
@@ -66,12 +65,12 @@ void Sdram::send_command(Fmc::RegBank& fmc_regs, Fmc::CommandMode command, uint8
   }
 
   DITTO_VERIFY(ticks < TIMEOUT_MS);
-  DITTO_VERIFY(!fmc_regs.get_register<Fmc::SdramSr>().read().read<Fmc::sdsr::Re>());
+  DITTO_VERIFY(!m_fmc_regs.get_register<Fmc::SdramSr>().read().read<Fmc::sdsr::Re>());
 }
 
-void Sdram::configure_pins(Rcc::RegBank& rcc_regs) noexcept {
+void Sdram::configure_pins() noexcept {
   // Configure pins
-  rcc_regs.get_register<Rcc::Ahb1Enr>().read_modify_write([](auto reg) {
+  m_rcc_regs.get_register<Rcc::Ahb1Enr>().read_modify_write([](auto reg) {
     // Enable gpio banks required for SDRAM
     reg.template write<Rcc::GpioCClkEn>(true);
     reg.template write<Rcc::GpioDClkEn>(true);

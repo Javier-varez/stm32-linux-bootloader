@@ -28,18 +28,7 @@ extern "C" Postform::Rtt::ControlBlock<1u, 0u> _SEGGER_RTT{
 Postform::Rtt::Transport transport{&_SEGGER_RTT.up_channels[0]};
 Postform::SerialLogger<Postform::Rtt::Transport> logger{&transport};
 
-Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
-Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
-Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
-Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
-Hw::QuadSpi::RegBank quadspi_regs{Hw::MmappedRegs{0xA000'1000}};
-
 namespace {
-void enable_gpio_i_bank_clk(Hw::Rcc::RegBank& rcc_regs) noexcept {
-  rcc_regs.get_register<Hw::Rcc::Ahb1Enr>().read_modify_write(
-      [](auto reg) { reg.template write<Hw::Rcc::GpioIClkEn>(true); });
-}
-
 void configure_voltage_regulator(Hw::Rcc::RegBank& rcc_regs, Hw::Pwr::RegBank& power_regs) noexcept {
   // Enable pwr clock
   rcc_regs.get_register<Hw::Rcc::Apb1Enr>().read_modify_write(
@@ -122,41 +111,36 @@ bool validate_qspi_data() noexcept {
       return false;
     }
   }
+  LOG_INFO(&logger, "QSPI validation successful");
   return true;
 }
 
 }  // namespace
 
 int main() {
-  Hw::Sdram sdram;
-  Hw::QspiFlash qspi_flash;
-
+  Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
+  Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
+  Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
+  Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
+  Hw::QuadSpi::RegBank quadspi_regs{Hw::MmappedRegs{0xA000'1000}};
   configure_system_clock(rcc_regs, flash_regs, pwr_regs);
+
+  Hw::Sdram sdram{rcc_regs, fmc_regs};
+  Hw::QspiFlash qspi_flash{rcc_regs, quadspi_regs};
 
   SysTick& systick = SysTick::getInstance();
   systick.init(App::SYSTICK_CLK_HZ);
+  sdram.init();
+  qspi_flash.init();
 
-  LOG_DEBUG(&logger, "Hello world!");
-  LOG_INFO(&logger, "Hello world! (Again!)");
-  LOG_WARNING(&logger, "Hello world! (And again!)");
-
-  Hw::GpioBank& gpioBankI = Hw::get_gpio_bank(Hw::GpioBankId::I);
-
-  enable_gpio_i_bank_clk(rcc_regs);
-  Hw::OutputGpioPin pinI1 = gpioBankI.try_get_as_output(Hw::GpioPinNumber{1}, Hw::GpioState::High);
-  DITTO_VERIFY(pinI1);
-
-  sdram.init(rcc_regs, fmc_regs);
-  qspi_flash.init(rcc_regs, quadspi_regs);
-
-  volatile int* const sdram_base = std::bit_cast<int*>(0xC000'0000);
+  LOG_INFO(&logger, "STM32 Linux Bootloader");
 
   validate_qspi_data();
 
+  volatile int* const sdram_base = std::bit_cast<int*>(0xC000'0000);
   int value = 0;
   while (true) {
     systick.delay(1'000);
-    pinI1.toggle_state();
 
     *sdram_base = ++value;
     LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);

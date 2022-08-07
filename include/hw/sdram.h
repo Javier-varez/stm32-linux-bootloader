@@ -10,9 +10,9 @@ namespace Hw {
 
 class Sdram {
  public:
-  Sdram() noexcept = default;
+  Sdram(Hw::Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexcept : m_rcc_regs(rcc_regs), m_fmc_regs(fmc_regs) {}
 
-  void init(Hw::Rcc::RegBank&, Fmc::RegBank&) noexcept;
+  void init() noexcept;
 
  private:
   enum class Pin {
@@ -56,14 +56,14 @@ class Sdram {
     NBL1,
     MAX_PINS
   };
-
+  Hw::Rcc::RegBank& m_rcc_regs;
+  Fmc::RegBank& m_fmc_regs;
   std::array<AltFuncGpioPin, static_cast<size_t>(Pin::MAX_PINS)> m_gpio_pins;
 
-  void configure_pins(Rcc::RegBank& rcc_regs) noexcept;
-  void configure_fmc(Rcc::RegBank& rcc_regs, Fmc::RegBank& fmc_regs) noexcept;
+  void configure_pins() noexcept;
+  void configure_fmc() noexcept;
   void save_pin(Pin pin, GpioBankId bank, GpioPinNumber pin_number) noexcept;
-  void send_command(Fmc::RegBank& fmc_regs, Fmc::CommandMode command, uint8_t autorefresh_num,
-                    uint16_t mode_reg) noexcept;
+  void send_command(Fmc::CommandMode command, uint8_t autorefresh_num, uint16_t mode_reg) noexcept;
 };
 
 }  // namespace Hw

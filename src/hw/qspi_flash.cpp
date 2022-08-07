@@ -217,8 +217,8 @@ void enable_memory_mapped_operation(QuadSpi::RegBank& regs) noexcept {
 
 }  // namespace
 
-void QspiFlash::configure_pins(Rcc::RegBank& rcc_regs) noexcept {
-  rcc_regs.get_register<Rcc::Ahb1Enr>().read_modify_write([](auto reg) {
+void QspiFlash::configure_pins() noexcept {
+  m_rcc_regs.get_register<Rcc::Ahb1Enr>().read_modify_write([](auto reg) {
     reg.template write<Rcc::GpioBClkEn>(true);
     reg.template write<Rcc::GpioDClkEn>(true);
     reg.template write<Rcc::GpioEClkEn>(true);
@@ -254,12 +254,12 @@ void QspiFlash::configure_pins(Rcc::RegBank& rcc_regs) noexcept {
   }
 }
 
-void QspiFlash::configure_quadspi(Rcc::RegBank& rcc_regs, QuadSpi::RegBank& quadspi_regs) noexcept {
-  rcc_regs.get_register<Rcc::Ahb3Enr>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiEn>(true); });
-  rcc_regs.get_register<Rcc::Ahb3Rst>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiRst>(true); });
-  rcc_regs.get_register<Rcc::Ahb3Rst>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiRst>(false); });
+void QspiFlash::configure_quadspi() noexcept {
+  m_rcc_regs.get_register<Rcc::Ahb3Enr>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiEn>(true); });
+  m_rcc_regs.get_register<Rcc::Ahb3Rst>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiRst>(true); });
+  m_rcc_regs.get_register<Rcc::Ahb3Rst>().read_modify_write([](auto reg) { reg.template write<Rcc::QspiRst>(false); });
 
-  quadspi_regs.get_register<QuadSpi::ControlReg>().read_modify_write([](auto reg) {
+  m_quadspi_regs.get_register<QuadSpi::ControlReg>().read_modify_write([](auto reg) {
     reg.template write<QuadSpi::cr::Enable>(false);
     reg.template write<QuadSpi::cr::FlashSelection>(QuadSpi::SelectedFlash::Mem1);
     reg.template write<QuadSpi::cr::Prescaler>(1);  // TODO(javier-varez): Make this fast after bringup
@@ -268,31 +268,31 @@ void QspiFlash::configure_quadspi(Rcc::RegBank& rcc_regs, QuadSpi::RegBank& quad
     reg.template write<QuadSpi::cr::DualFlashMode>(false);
   });
 
-  quadspi_regs.get_register<QuadSpi::DeviceConfigReg>().read_modify_write([](auto reg) {
+  m_quadspi_regs.get_register<QuadSpi::DeviceConfigReg>().read_modify_write([](auto reg) {
     reg.template write<QuadSpi::dcr::ChipSelectHighTime>(6);
     reg.template write<QuadSpi::dcr::ClockMode>(QuadSpi::DeviceSpiClockMode::Mode0);
     reg.template write<QuadSpi::dcr::FlashSize>(23);  // (2 ^ 24) = 16 MB flash
   });
 
-  quadspi_regs.get_register<QuadSpi::ControlReg>().read_modify_write(
+  m_quadspi_regs.get_register<QuadSpi::ControlReg>().read_modify_write(
       [](auto reg) { reg.template write<QuadSpi::cr::Enable>(true); });
 
-  send_simple_command(quadspi_regs, Command::ResetEnable);
-  send_simple_command(quadspi_regs, Command::ResetMemory);
+  send_simple_command(m_quadspi_regs, Command::ResetEnable);
+  send_simple_command(m_quadspi_regs, Command::ResetMemory);
 
-  configure_quadspi_operation(quadspi_regs);
+  configure_quadspi_operation(m_quadspi_regs);
 
   constexpr static uint32_t MEMORY_ID = 0x18BA20;
-  uint32_t id = read_id(quadspi_regs);
-  LOG_DEBUG(&logger, "Id is %x", id);
+  uint32_t id = read_id(m_quadspi_regs);
+  LOG_DEBUG(&logger, "QSPI ID: %x", id);
   DITTO_VERIFY(id == MEMORY_ID);
 
-  enable_memory_mapped_operation(quadspi_regs);
+  enable_memory_mapped_operation(m_quadspi_regs);
 }
 
-void QspiFlash::init(Rcc::RegBank& rcc_regs, QuadSpi::RegBank& quadspi_regs) noexcept {
-  configure_pins(rcc_regs);
-  configure_quadspi(rcc_regs, quadspi_regs);
+void QspiFlash::init() noexcept {
+  configure_pins();
+  configure_quadspi();
 }
 
 }  // namespace Hw
