@@ -54,6 +54,11 @@ enum class SystemClockSwitch {
   PLL = 2,
 };
 
+enum class Clock48MSrc {
+  PLL = 0,
+  PLLSAI = 1,
+};
+
 using PllRdyField = FieldDesc<std::uint32_t, bool, RegOffset{25}, RegNumBits{1}>;
 using PllOnField = FieldDesc<std::uint32_t, bool, RegOffset{24}, RegNumBits{1}>;
 using HseBypField = FieldDesc<std::uint32_t, bool, RegOffset{18}, RegNumBits{1}>;
@@ -102,6 +107,10 @@ using Ahb3Enr = Register<std::uint32_t, BlockOffset{0x38u}, QspiEn, FmcEn>;
 using PwrEn = FieldDesc<std::uint32_t, bool, RegOffset{28}, RegNumBits{1}>;
 using Apb1Enr = Register<std::uint32_t, BlockOffset{0x40u}, PwrEn>;
 
-using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb3Rst, Ahb1Enr, Ahb3Enr, Apb1Enr>;
+using Clock48MSelField = FieldDesc<std::uint32_t, Clock48MSrc, RegOffset{27}, RegNumBits{1}>;
+using DedicatedClocksConfigReg = Register<std::uint32_t, BlockOffset{0x90u}, Clock48MSelField>;
+
+using RegBank =
+    RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb3Rst, Ahb1Enr, Ahb3Enr, Apb1Enr, DedicatedClocksConfigReg>;
 
 }  // namespace Hw::Rcc

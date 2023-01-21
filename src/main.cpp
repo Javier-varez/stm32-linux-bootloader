@@ -74,7 +74,7 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
     reg.template write<Hw::Rcc::PllMField>(HSE_FREQ_MHZ);
     reg.template write<Hw::Rcc::PllNField>(PLL_OUT_FREQ_MHZ * 2);
     reg.template write<Hw::Rcc::PllPField>(Hw::Rcc::PllPSetting::DIV_2);
-    reg.template write<Hw::Rcc::PllQField>(Hw::Rcc::PllQSetting::DIV_4);
+    reg.template write<Hw::Rcc::PllQField>(Hw::Rcc::PllQSetting::DIV_9);  // PLLQ is now 48 MHz
     reg.template write<Hw::Rcc::PllSrcField>(Hw::Rcc::PllSource::HSE);
   });
 
@@ -101,6 +101,11 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
 
   while (clock_config_reg.read().read<Hw::Rcc::SwitchStatusField>() != Hw::Rcc::SystemClockSwitch::PLL)
     ;
+
+  // Set the USB clock source to the main PLL
+  auto dedicated_clock_config_reg = rcc_regs.get_register<Hw::Rcc::DedicatedClocksConfigReg>();
+  dedicated_clock_config_reg.read_modify_write(
+      [](auto reg) { reg.template write<Hw::Rcc::Clock48MSelField>(Hw::Rcc::Clock48MSrc::PLL); });
 }
 
 extern "C" uint8_t qspi_data_bin[];

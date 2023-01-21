@@ -15,7 +15,7 @@ extern "C" void Reset_Handler() {
   extern std::uint8_t __copy_start__;
   extern std::uint8_t __copy_end__;
   extern std::uint8_t __copy_origin;
-  std::size_t size = static_cast<size_t>(&__copy_end__ - &__copy_start__);
+  const std::size_t size = static_cast<size_t>(&__copy_end__ - &__copy_start__);
   std::copy(&__copy_origin, &__copy_origin + size, &__copy_start__);
 
   // Initialize bss section

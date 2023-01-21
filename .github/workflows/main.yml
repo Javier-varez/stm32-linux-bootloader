@@ -26,6 +26,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
+    - run: sudo apt install libtinfo5
     - name: Install dependencies
       run: ./bootstrap.sh
     - name: Build with CMake

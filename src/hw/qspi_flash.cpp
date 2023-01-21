@@ -71,9 +71,7 @@ uint32_t read_id(QuadSpi::RegBank& regs) noexcept {
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
     ;
-
   const uint32_t data{regs.get_register<QuadSpi::DataReg>().get()};
-
   while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
     ;
 
@@ -82,8 +80,8 @@ uint32_t read_id(QuadSpi::RegBank& regs) noexcept {
 
 std::uint8_t read_config_reg(QuadSpi::RegBank& regs) noexcept {
   clear_flags(regs);
-  regs.get_register<QuadSpi::DataLengthReg>().write([=](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
-  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
     reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
     reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
     reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::SingleLine);
@@ -108,8 +106,8 @@ void write_config_reg(QuadSpi::RegBank& regs, std::uint8_t value) noexcept {
   send_simple_command(regs, Command::WriteEnable);
 
   clear_flags(regs);
-  regs.get_register<QuadSpi::DataLengthReg>().write([=](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
-  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
     reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
     reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
     reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::SingleLine);
@@ -132,8 +130,8 @@ void write_config_reg(QuadSpi::RegBank& regs, std::uint8_t value) noexcept {
 
 std::uint8_t read_enhanced_config_reg(QuadSpi::RegBank& regs) noexcept {
   clear_flags(regs);
-  regs.get_register<QuadSpi::DataLengthReg>().write([=](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
-  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
     reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
     reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
     reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::SingleLine);
@@ -159,8 +157,8 @@ void write_enhanced_config_reg(QuadSpi::RegBank& regs, uint8_t value) noexcept {
   send_simple_command(regs, Command::WriteEnable);
 
   clear_flags(regs);
-  regs.get_register<QuadSpi::DataLengthReg>().write([=](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
-  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
     reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
     reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
     reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::SingleLine);
@@ -196,8 +194,6 @@ void configure_quadspi_operation(QuadSpi::RegBank& regs) noexcept {
   uint8_t enhanced_cfg_reg = read_enhanced_config_reg(regs);
   enhanced_cfg_reg &= ~QUADSPI_IO_PROTOCOL_MASK;
   write_enhanced_config_reg(regs, enhanced_cfg_reg);
-
-  return;
 }
 
 void enable_memory_mapped_operation(QuadSpi::RegBank& regs) noexcept {
@@ -262,7 +258,7 @@ void QspiFlash::configure_quadspi() noexcept {
   m_quadspi_regs.get_register<QuadSpi::ControlReg>().read_modify_write([](auto reg) {
     reg.template write<QuadSpi::cr::Enable>(false);
     reg.template write<QuadSpi::cr::FlashSelection>(QuadSpi::SelectedFlash::Mem1);
-    reg.template write<QuadSpi::cr::Prescaler>(1);  // TODO(javier-varez): Make this fast after bringup
+    reg.template write<QuadSpi::cr::Prescaler>(1);
     reg.template write<QuadSpi::cr::FifoThLvl>(6);
     reg.template write<QuadSpi::cr::SampleShift>(true);
     reg.template write<QuadSpi::cr::DualFlashMode>(false);
