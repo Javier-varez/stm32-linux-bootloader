@@ -157,9 +157,14 @@ using AlternateBytes = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, Reg
 using AlternateBytesReg = Register<std::uint32_t, BlockOffset{0x1C}, abr::AlternateBytes>;
 
 namespace dr {
-using Data = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, RegNumBits{32}>;
+using Data32 = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, RegNumBits{32}>;
+using Data16 = FieldDesc<std::uint16_t, std::uint16_t, RegOffset{0}, RegNumBits{16}>;
+using Data8 = FieldDesc<std::uint8_t, std::uint8_t, RegOffset{0}, RegNumBits{8}>;
 }
-using DataReg = Register<std::uint32_t, BlockOffset{0x20}, dr::Data>;
+
+using Data32Reg = Register<std::uint32_t, BlockOffset{0x20}, dr::Data32>;
+using Data16Reg = Register<std::uint16_t, BlockOffset{0x20}, dr::Data16>;
+using Data8Reg = Register<std::uint8_t, BlockOffset{0x20}, dr::Data8>;
 
 namespace psmr {
 using Mask = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, RegNumBits{32}>;
@@ -182,7 +187,7 @@ using Timeout = FieldDesc<std::uint32_t, std::uint16_t, RegOffset{0}, RegNumBits
 using LowPowerTimeoutReg = Register<std::uint32_t, BlockOffset{0x30}, lptr::Timeout>;
 
 using RegBank = RegisterBank<ControlReg, DeviceConfigReg, StatusReg, FlagClearReg, DataLengthReg, CommConfigReg,
-                             AddressReg, AlternateBytesReg, DataReg, PollingStatusMaskReg, PollingStatusMatchReg,
+                             AddressReg, AlternateBytesReg, Data8Reg, Data16Reg, Data32Reg, PollingStatusMaskReg, PollingStatusMatchReg,
                              PollingIntervalReg, LowPowerTimeoutReg>;
 
 }  // namespace Hw::QuadSpi
