@@ -1,0 +1,24 @@
+[package]
+name = "loader"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+postform_decoder = { git = "https://github.com/javier-varez/postform", version = "0.5.0", branch = "main" }
+postform_rtt = { git = "https://github.com/javier-varez/postform", version = "0.5.0", branch = "main" }
+object = "0.30"
+probe-rs = "0.14.2"
+gdb-server = "0.14.2"
+probe-rs-rtt = "0.14.2"
+clap = { version = "4.3", features = ["derive", "env"] }
+clap-num = "1.0"
+thiserror = "1.0"
+color-eyre = "0.6"
+ctrlc = "3.1.7"
+log = "0.4"
+env_logger = "0.10"
+field-offset = "0.3.4"
+crc32c = "0.6"
+enumn = "0.1.8"

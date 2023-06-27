@@ -32,7 +32,7 @@ TOOLS_DIR=.tools
 TOOLCHAIN_DIR=${PWD}/${TOOLS_DIR}/llvm
 DOWNLOAD_DIR=${PWD}/${TOOLS_DIR}/downloads
 
-LLVM_VERSION="14.0.0"
+LLVM_VERSION="16.0.0"
 
 OS=$(uname | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m| tr '[:upper:]' '[:lower:]')

@@ -109,7 +109,7 @@ void Sdram::configure_pins() noexcept {
   save_pin(Pin::A10, GpioBankId::G, GpioPinNumber{0});
   save_pin(Pin::A11, GpioBankId::G, GpioPinNumber{1});
   save_pin(Pin::BA0, GpioBankId::G, GpioPinNumber{4});
-  save_pin(Pin::BA0, GpioBankId::G, GpioPinNumber{5});
+  save_pin(Pin::BA1, GpioBankId::G, GpioPinNumber{5});
   save_pin(Pin::SDNWE, GpioBankId::H, GpioPinNumber{5});
   save_pin(Pin::SDNCAS, GpioBankId::G, GpioPinNumber{15});
   save_pin(Pin::SDNRAS, GpioBankId::F, GpioPinNumber{11});

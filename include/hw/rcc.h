@@ -107,10 +107,13 @@ using Ahb3Enr = Register<std::uint32_t, BlockOffset{0x38u}, QspiEn, FmcEn>;
 using PwrEn = FieldDesc<std::uint32_t, bool, RegOffset{28}, RegNumBits{1}>;
 using Apb1Enr = Register<std::uint32_t, BlockOffset{0x40u}, PwrEn>;
 
+using Uart1En = FieldDesc<std::uint32_t, bool, RegOffset{4}, RegNumBits{1}>;
+using Apb2Enr = Register<std::uint32_t, BlockOffset{0x44u}, Uart1En>;
+
 using Clock48MSelField = FieldDesc<std::uint32_t, Clock48MSrc, RegOffset{27}, RegNumBits{1}>;
 using DedicatedClocksConfigReg = Register<std::uint32_t, BlockOffset{0x90u}, Clock48MSelField>;
 
-using RegBank =
-    RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb3Rst, Ahb1Enr, Ahb3Enr, Apb1Enr, DedicatedClocksConfigReg>;
+using RegBank = RegisterBank<ControlReg, PllReg, ClockConfigReg, Ahb3Rst, Ahb1Enr, Ahb3Enr, Apb1Enr, Apb2Enr,
+                             DedicatedClocksConfigReg>;
 
 }  // namespace Hw::Rcc

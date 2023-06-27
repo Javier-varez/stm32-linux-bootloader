@@ -6,10 +6,12 @@
 namespace Hw {
 
 namespace {
-constexpr static uint8_t NUM_DUMMY_CYCLES = 10;
+constexpr uint8_t NUM_DUMMY_CYCLES = 10;  // At 108 MHz.
 
 enum class Command {
   ReadStatusReg = 0x05,
+  ReadFlagStatusReg = 0x70,
+  ClearFlagStatusReg = 0x50,
   WriteEnable = 0x06,
   ResetEnable = 0x66,
   ReadVolatileConfigReg = 0x85,
@@ -17,9 +19,10 @@ enum class Command {
   ReadEnhancedVolatileConfigReg = 0x65,
   WriteEnhancedVolatileConfigReg = 0x61,
   ResetMemory = 0x99,
-  ReadId = 0x9e,
   MultipleIoReadId = 0xaf,
   QuadIoFastRead = 0xeb,
+  QuadIoFastProgram = 0x12,
+  SubsectorErase = 0x20,
 };
 
 void clear_flags(QuadSpi::RegBank& regs) noexcept {
@@ -51,6 +54,26 @@ void send_simple_command(QuadSpi::RegBank& regs, Command command) noexcept {
   }
 }
 
+void send_simple_quad_command(QuadSpi::RegBank& regs, Command command) noexcept {
+  clear_flags(regs);
+
+  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::None);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(command));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(0);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectWrite);
+  });
+
+  // Wait until done
+  while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>()) {
+  }
+}
+
 uint32_t read_id(QuadSpi::RegBank& regs) noexcept {
   clear_flags(regs);
 
@@ -71,7 +94,7 @@ uint32_t read_id(QuadSpi::RegBank& regs) noexcept {
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
     ;
-  const uint32_t data{regs.get_register<QuadSpi::DataReg>().get()};
+  const uint32_t data{regs.get_register<QuadSpi::Data32Reg>().get()};
   while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
     ;
 
@@ -96,7 +119,7 @@ std::uint8_t read_config_reg(QuadSpi::RegBank& regs) noexcept {
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
     ;
-  const uint32_t data{regs.get_register<QuadSpi::DataReg>().get()};
+  const uint32_t data{regs.get_register<QuadSpi::Data32Reg>().get()};
   while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
     ;
   return data;
@@ -119,7 +142,7 @@ void write_config_reg(QuadSpi::RegBank& regs, std::uint8_t value) noexcept {
     reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectWrite);
   });
 
-  regs.get_register<QuadSpi::DataReg>().set(value);
+  regs.get_register<QuadSpi::Data32Reg>().set(value);
 
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
@@ -147,7 +170,7 @@ std::uint8_t read_enhanced_config_reg(QuadSpi::RegBank& regs) noexcept {
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
     ;
-  const uint32_t data{regs.get_register<QuadSpi::DataReg>().get()};
+  const uint32_t data{regs.get_register<QuadSpi::Data32Reg>().get()};
   while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
     ;
   return data;
@@ -171,7 +194,7 @@ void write_enhanced_config_reg(QuadSpi::RegBank& regs, uint8_t value) noexcept {
     reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectWrite);
   });
 
-  regs.get_register<QuadSpi::DataReg>().set(value);
+  regs.get_register<QuadSpi::Data32Reg>().set(value);
 
   // Wait until done
   while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
@@ -209,6 +232,112 @@ void enable_memory_mapped_operation(QuadSpi::RegBank& regs) noexcept {
     reg.template write<QuadSpi::ccr::NumDummyCycles>(NUM_DUMMY_CYCLES);
     reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::MemMapped);
   });
+}
+
+void clear_flags_status_device_register(QuadSpi::RegBank& regs) noexcept {
+  send_simple_quad_command(regs, Command::ClearFlagStatusReg);
+}
+
+uint8_t read_flags_status_device_register(QuadSpi::RegBank& regs) noexcept {
+  clear_flags(regs);
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::QuadLine);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(Command::ReadFlagStatusReg));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(0);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectRead);
+  });
+
+  // Wait until done
+  while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
+    ;
+  const uint8_t data{regs.get_register<QuadSpi::Data8Reg>().get()};
+  while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
+    ;
+  return data;
+}
+
+uint8_t read_status_register_quad_mode(QuadSpi::RegBank& regs) noexcept {
+  clear_flags(regs);
+  regs.get_register<QuadSpi::DataLengthReg>().write([](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(0); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::None);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::QuadLine);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(Command::ReadStatusReg));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(0);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectRead);
+  });
+
+  // Wait until done
+  while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
+    ;
+  const uint32_t data{regs.get_register<QuadSpi::Data8Reg>().get()};
+  while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
+    ;
+  return data;
+}
+
+void send_quad_page_write_cmd(QuadSpi::RegBank& regs, uint32_t address, std::span<const uint8_t> data) noexcept {
+  clear_flags(regs);
+  regs.get_register<QuadSpi::DataLengthReg>().write(
+      [data](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(data.size() - 1); });
+  regs.get_register<QuadSpi::CommConfigReg>().write([](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::QuadLine);
+    reg.template write<QuadSpi::ccr::AddressSize>(QuadSpi::AddressSize::Bits24);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::QuadLine);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(Command::QuadIoFastProgram));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(0);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectWrite);
+  });
+  regs.get_register<QuadSpi::AddressReg>().write([=](auto reg) { reg.template write<QuadSpi::ar::Address>(address); });
+
+  for (const uint8_t byte : data) {
+    constexpr static uint32_t MAX_FIFO_LEVEL = 32;
+    while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::FifoLevel>() >= MAX_FIFO_LEVEL)
+      ;
+
+    regs.get_register<QuadSpi::Data8Reg>().set(byte);
+  }
+
+  // Wait until done
+  while (!regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
+    ;
+  while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
+    ;
+}
+
+void send_quad_subsector_erase_cmd(QuadSpi::RegBank& regs, uint32_t address) noexcept {
+  clear_flags(regs);
+
+  regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::QuadLine);
+    reg.template write<QuadSpi::ccr::AddressSize>(QuadSpi::AddressSize::Bits24);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::None);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(Command::SubsectorErase));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(0);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectRead);
+  });
+  regs.get_register<QuadSpi::AddressReg>().write([=](auto reg) { reg.template write<QuadSpi::ar::Address>(address); });
+
+  while (regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::Busy>())
+    ;
 }
 
 }  // namespace
@@ -282,13 +411,117 @@ void QspiFlash::configure_quadspi() noexcept {
   uint32_t id = read_id(m_quadspi_regs);
   LOG_DEBUG(&logger, "QSPI ID: %x", id);
   DITTO_VERIFY(id == MEMORY_ID);
-
-  enable_memory_mapped_operation(m_quadspi_regs);
 }
 
 void QspiFlash::init() noexcept {
   configure_pins();
   configure_quadspi();
+}
+
+void QspiFlash::enable_memory_mapped_mode() noexcept { enable_memory_mapped_operation(m_quadspi_regs); }
+
+Ditto::Result<void, QspiFlash::Error> QspiFlash::read_and_translate_flags_status_reg() noexcept {
+  constexpr static uint8_t BUSY_MASK = 1 << 7;
+  constexpr static uint8_t ERASE_FAILURE_MASK = 1 << 5;
+  constexpr static uint8_t PROGRAM_FAILURE_MASK = 1 << 4;
+  constexpr static uint8_t PROTECTION_FAILURE_MASK = 1 << 1;
+  const uint8_t flags_status_reg = read_flags_status_device_register(m_quadspi_regs);
+
+  if (!(flags_status_reg & BUSY_MASK)) {
+    LOG_WARNING(&logger, "QSPI Device is busy");
+    return Ditto::Result<void, QspiFlash::Error>::error(Error::DEVICE_BUSY);
+  }
+
+  if (flags_status_reg & PROTECTION_FAILURE_MASK) {
+    LOG_WARNING(&logger, "Attempted to access QSPI Flash protected region");
+    return Ditto::Result<void, QspiFlash::Error>::error(Error::PROTECTED_RANGE);
+  }
+
+  if (flags_status_reg & (ERASE_FAILURE_MASK | PROGRAM_FAILURE_MASK)) {
+    LOG_WARNING(&logger, "Program/Erase QSPI Flash operation failed");
+    return Ditto::Result<void, QspiFlash::Error>::error(Error::OPERATION_FAILED);
+  }
+  return Ditto::Result<void, QspiFlash::Error>::ok();
+}
+
+Ditto::Result<void, QspiFlash::Error> QspiFlash::erase_subsector(const uint32_t address) noexcept {
+  constexpr static uint32_t SUBSECTOR_MASK = SUBSECTOR_SIZE - 1;
+  if ((address & SUBSECTOR_MASK) != 0) {
+    return Ditto::Result<void, Error>::error(Error::UNALIGNED_ADDRESS);
+  }
+  clear_flags_status_device_register(m_quadspi_regs);
+  send_simple_quad_command(m_quadspi_regs, Command::WriteEnable);
+  send_quad_subsector_erase_cmd(m_quadspi_regs, address);
+
+  constexpr static uint8_t WRITE_IN_PROGRESS_MASK = 0x1;
+  while ((read_status_register_quad_mode(m_quadspi_regs) & WRITE_IN_PROGRESS_MASK) != 0)
+    ;
+
+  return read_and_translate_flags_status_reg();
+}
+
+Ditto::Result<void, QspiFlash::Error> QspiFlash::write_page(const uint32_t address,
+                                                            std::span<const uint8_t> data) noexcept {
+  if (data.size() > PAGE_SIZE) {
+    return Ditto::Result<void, Error>::error(Error::TOO_MUCH_DATA);
+  }
+
+  constexpr static uint32_t PAGE_MASK = PAGE_SIZE - 1;
+  if ((address & PAGE_MASK) != 0) {
+    return Ditto::Result<void, Error>::error(Error::UNALIGNED_ADDRESS);
+  }
+
+  clear_flags_status_device_register(m_quadspi_regs);
+  send_simple_quad_command(m_quadspi_regs, Command::WriteEnable);
+  send_quad_page_write_cmd(m_quadspi_regs, address, data);
+
+  // Wait until write completes
+  constexpr static uint8_t WRITE_IN_PROGRESS_MASK = 0x1;
+  while ((read_status_register_quad_mode(m_quadspi_regs) & WRITE_IN_PROGRESS_MASK) != 0)
+    ;
+
+  return read_and_translate_flags_status_reg();
+}
+
+void QspiFlash::read_data(const uint32_t address, std::span<uint8_t> data) noexcept {
+  clear_flags(m_quadspi_regs);
+
+  m_quadspi_regs.get_register<QuadSpi::DataLengthReg>().write(
+      [=](auto reg) { reg.template write<QuadSpi::dlr::DataLength>(data.size() - 1); });
+
+  m_quadspi_regs.get_register<QuadSpi::CommConfigReg>().write([=](auto reg) {
+    reg.template write<QuadSpi::ccr::AddressMode>(QuadSpi::AddressMode::QuadLine);
+    reg.template write<QuadSpi::ccr::AddressSize>(QuadSpi::AddressSize::Bits24);
+    reg.template write<QuadSpi::ccr::AlternateBytesMode>(QuadSpi::AlternateBytesMode::None);
+    reg.template write<QuadSpi::ccr::DataMode>(QuadSpi::DataMode::QuadLine);
+    reg.template write<QuadSpi::ccr::Instruction>(static_cast<QuadSpi::Instruction>(Command::QuadIoFastRead));
+    reg.template write<QuadSpi::ccr::InstructionMode>(QuadSpi::InstructionMode::QuadLine);
+    reg.template write<QuadSpi::ccr::DdrMode>(false);
+    reg.template write<QuadSpi::ccr::DdrHold>(false);
+    reg.template write<QuadSpi::ccr::NumDummyCycles>(NUM_DUMMY_CYCLES);
+    reg.template write<QuadSpi::ccr::FunctionalMode>(QuadSpi::FunctionalMode::IndirectRead);
+    reg.template write<QuadSpi::ccr::SendInstructionOnce>(false);
+  });
+  m_quadspi_regs.get_register<QuadSpi::AddressReg>().write(
+      [=](auto reg) { reg.template write<QuadSpi::ar::Address>(address); });
+
+  size_t received_data = 0;
+  while (received_data != data.size()) {
+    const size_t fifo_level = m_quadspi_regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::FifoLevel>();
+    if (fifo_level == 0) {
+      continue;
+    }
+
+    data[received_data] = m_quadspi_regs.get_register<QuadSpi::Data8Reg>().read().read<QuadSpi::dr::Data8>();
+    LOG_DEBUG(&logger, "Received byte 0x%hhx", data[received_data]);
+    received_data++;
+  }
+
+  while (!m_quadspi_regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::TxComplete>())
+    ;
+
+  const size_t fifo_level = m_quadspi_regs.get_register<QuadSpi::StatusReg>().read().read<QuadSpi::sr::FifoLevel>();
+  DITTO_VERIFY(fifo_level == 0);
 }
 
 }  // namespace Hw

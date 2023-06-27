@@ -7,23 +7,41 @@
 #include "hw/qspi_flash.h"
 #include "hw/rcc.h"
 #include "hw/sdram.h"
+#include "hw/uart.h"
 #include "postform/logger.h"
 #include "postform/rtt/rtt.h"
 #include "postform/rtt/transport.h"
 #include "postform/serial_logger.h"
+#include "rtt_bootloader.h"
 #include "systick_config.h"
 
-std::array<std::uint8_t, 1024u> postform_channel_buffer;
+namespace {
 
-extern "C" Postform::Rtt::ControlBlock<1u, 0u> _SEGGER_RTT{
-    std::array{
-        Postform::Rtt::ChannelDescriptor{
-            .name = "postform",
-            .buffer = postform_channel_buffer,
-        },
+std::array<std::uint8_t, 1024u> postform_channel_buffer;
+std::array<std::uint8_t, 1024u> bootloader_up_buffer;
+std::array<std::uint8_t, 8192u> bootloader_down_buffer;
+
+std::array up_descriptors{
+    Postform::Rtt::ChannelDescriptor{
+        .name = "postform",
+        .buffer = postform_channel_buffer,
     },
-    {},
+    Postform::Rtt::ChannelDescriptor{
+        .name = "bootloader_up",
+        .buffer = bootloader_up_buffer,
+    },
 };
+
+std::array down_descriptors{
+    Postform::Rtt::ChannelDescriptor{
+        .name = "bootloader_down",
+        .buffer = bootloader_down_buffer,
+    },
+};
+
+}  // namespace
+
+extern "C" Postform::Rtt::ControlBlock<2u, 1u> _SEGGER_RTT{std::span{up_descriptors}, std::span{down_descriptors}};
 
 Postform::Rtt::Transport transport{&_SEGGER_RTT.up_channels[0]};
 Postform::SerialLogger<Postform::Rtt::Transport> logger{&transport};
@@ -35,19 +53,19 @@ void configure_voltage_regulator(Hw::Rcc::RegBank& rcc_regs, Hw::Pwr::RegBank& p
       [](auto reg) { reg.template write<Hw::Rcc::PwrEn>(true); });
 
   power_regs.get_register<Hw::Pwr::ControlReg1>().read_modify_write(
-      [=](auto reg) { reg.template write<Hw::Pwr::VoltageScalingOutputField>(Hw::Pwr::VoltageScaling::MODE_3); });
+      [](auto reg) { reg.template write<Hw::Pwr::VoltageScalingOutputField>(Hw::Pwr::VoltageScaling::MODE_3); });
 
   while (!power_regs.get_register<Hw::Pwr::ControlStatusReg1>().read().read<Hw::Pwr::VoltageScalingRdyField>())
     ;
 
   power_regs.get_register<Hw::Pwr::ControlReg1>().read_modify_write(
-      [=](auto reg) { reg.template write<Hw::Pwr::OverDriveEnField>(true); });
+      [](auto reg) { reg.template write<Hw::Pwr::OverDriveEnField>(true); });
 
   while (!power_regs.get_register<Hw::Pwr::ControlStatusReg1>().read().read<Hw::Pwr::OverDriveRdyField>())
     ;
 
   power_regs.get_register<Hw::Pwr::ControlReg1>().read_modify_write(
-      [=](auto reg) { reg.template write<Hw::Pwr::OverDriveSwEnField>(true); });
+      [](auto reg) { reg.template write<Hw::Pwr::OverDriveSwEnField>(true); });
 
   while (!power_regs.get_register<Hw::Pwr::ControlStatusReg1>().read().read<Hw::Pwr::OverDriveSwRdyField>())
     ;
@@ -108,50 +126,98 @@ void configure_system_clock(Hw::Rcc::RegBank& rcc_regs, Hw::Flash::RegBank& flas
       [](auto reg) { reg.template write<Hw::Rcc::Clock48MSelField>(Hw::Rcc::Clock48MSrc::PLL); });
 }
 
-extern "C" uint8_t qspi_data_bin[];
-extern "C" int qspi_data_bin_len;
+Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
+Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
+Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
+Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
+Hw::QuadSpi::RegBank quadspi_regs{Hw::MmappedRegs{0xA000'1000}};
+Hw::Uart::RegBank uart_regs{Hw::MmappedRegs{0x4001'1000}};
 
-bool validate_qspi_data() noexcept {
-  volatile uint8_t* const qspi_base = std::bit_cast<uint8_t*>(0x9000'0000);
-  for (int i = 0; i < qspi_data_bin_len; i++) {
-    if (qspi_data_bin[i] != qspi_base[i]) {
-      LOG_ERROR(&logger, "Unexpected data at byte offset %d: [0x%hhx != 0x%hhx]", i, qspi_data_bin[i], qspi_base[i]);
-      return false;
-    }
+Hw::Sdram sdram{rcc_regs, fmc_regs};
+Hw::QspiFlash qspi_flash{rcc_regs, quadspi_regs};
+
+RttBootloader bootloader{_SEGGER_RTT.up_channels[1], _SEGGER_RTT.down_channels[0], qspi_flash};
+
+void init_uart() noexcept {
+  rcc_regs.get_register<Hw::Rcc::Apb2Enr>().read_modify_write(
+      [](auto reg) { reg.template write<Hw::Rcc::Uart1En>(true); });
+
+  uart_regs.get_register<Hw::Uart::ControlReg1>().read_modify_write([](auto reg) {
+    reg.template write<Hw::Uart::TxEnField>(false);
+    reg.template write<Hw::Uart::RxEnField>(false);
+    reg.template write<Hw::Uart::UartEnField>(false);
+  });
+
+  uart_regs.get_register<Hw::Uart::BaudrateReg>().write(
+      [](auto reg) { reg.template write<Hw::Uart::BaudrateField>(937); });
+
+  uart_regs.get_register<Hw::Uart::ControlReg1>().read_modify_write([](auto reg) {
+    reg.template write<Hw::Uart::TxEnField>(true);
+    reg.template write<Hw::Uart::RxEnField>(true);
+    reg.template write<Hw::Uart::UartEnField>(true);
+  });
+}
+
+void send_char(const char c) noexcept {
+  while (!uart_regs.get_register<Hw::Uart::InterruptAndStatusReg>().read().read<Hw::Uart::TxEmptyField>())
+    ;
+
+  uart_regs.get_register<Hw::Uart::TransmitDataReg>().write(
+      [=](auto reg) { reg.template write<Hw::Uart::TransmitDataField>(c); });
+}
+
+void send_string(const char* str) noexcept {
+  while (*str != '\0') {
+    send_char(*str);
+    str++;
   }
-  LOG_INFO(&logger, "QSPI validation successful");
-  return true;
 }
 
 }  // namespace
 
-int main() {
-  Hw::Rcc::RegBank rcc_regs{Hw::MmappedRegs{0x4002'3800}};
-  Hw::Flash::RegBank flash_regs{Hw::MmappedRegs{0x4002'3C00}};
-  Hw::Pwr::RegBank pwr_regs{Hw::MmappedRegs{0x4000'7000}};
-  Hw::Fmc::RegBank fmc_regs{Hw::MmappedRegs{0xA000'0000}};
-  Hw::QuadSpi::RegBank quadspi_regs{Hw::MmappedRegs{0xA000'1000}};
-  configure_system_clock(rcc_regs, flash_regs, pwr_regs);
+extern "C" void _exit() noexcept {}
 
-  Hw::Sdram sdram{rcc_regs, fmc_regs};
-  Hw::QspiFlash qspi_flash{rcc_regs, quadspi_regs};
+int main() {
+  configure_system_clock(rcc_regs, flash_regs, pwr_regs);
 
   SysTick& systick = SysTick::getInstance();
   systick.init(App::SYSTICK_CLK_HZ);
+
   sdram.init();
   qspi_flash.init();
 
   LOG_INFO(&logger, "STM32 Linux Bootloader");
 
-  validate_qspi_data();
+  rcc_regs.get_register<Hw::Rcc::Ahb1Enr>().read_modify_write([](auto reg) {
+    reg.template write<Hw::Rcc::GpioAClkEn>(true);
+    reg.template write<Hw::Rcc::GpioBClkEn>(true);
+  });
 
-  volatile int* const sdram_base = std::bit_cast<int*>(0xC000'0000);
-  int value = 0;
+  auto uart_tx_pin =
+      Hw::get_gpio_bank(Hw::GpioBankId::A)
+          .try_get_as_alternate_function(Hw::GpioPinNumber{9}, Hw::GpioAltFunc::AF7_SPI2_3_USART1_2_3_UART5_SPDIFRX);
+  DITTO_VERIFY(uart_tx_pin.is_valid());
+  auto uart_rx_pin =
+      Hw::get_gpio_bank(Hw::GpioBankId::B)
+          .try_get_as_alternate_function(Hw::GpioPinNumber{7}, Hw::GpioAltFunc::AF7_SPI2_3_USART1_2_3_UART5_SPDIFRX);
+  DITTO_VERIFY(uart_rx_pin.is_valid());
+
+  init_uart();
+  send_string("Hi from bootloader!");
+
+  LOG_INFO(&logger, "Running bootloader");
+
+  auto start = systick.getCoarseTickCount();
+
   while (true) {
-    systick.delay(1'000);
+    bootloader.run();
 
-    *sdram_base = ++value;
-    LOG_DEBUG(&logger, "Sdram value is %d", *sdram_base);
+    if ((systick.getCoarseTickCount() - start) > 5000) {
+      if (!bootloader.did_receive_cmd()) {
+        LOG_INFO(&logger, "Time out on cmd handling. Booting linux");
+        bootloader.boot();
+      }
+    }
   }
 }
 
