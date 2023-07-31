@@ -160,7 +160,7 @@ namespace dr {
 using Data32 = FieldDesc<std::uint32_t, std::uint32_t, RegOffset{0}, RegNumBits{32}>;
 using Data16 = FieldDesc<std::uint16_t, std::uint16_t, RegOffset{0}, RegNumBits{16}>;
 using Data8 = FieldDesc<std::uint8_t, std::uint8_t, RegOffset{0}, RegNumBits{8}>;
-}
+}  // namespace dr
 
 using Data32Reg = Register<std::uint32_t, BlockOffset{0x20}, dr::Data32>;
 using Data16Reg = Register<std::uint16_t, BlockOffset{0x20}, dr::Data16>;
@@ -187,7 +187,7 @@ using Timeout = FieldDesc<std::uint32_t, std::uint16_t, RegOffset{0}, RegNumBits
 using LowPowerTimeoutReg = Register<std::uint32_t, BlockOffset{0x30}, lptr::Timeout>;
 
 using RegBank = RegisterBank<ControlReg, DeviceConfigReg, StatusReg, FlagClearReg, DataLengthReg, CommConfigReg,
-                             AddressReg, AlternateBytesReg, Data8Reg, Data16Reg, Data32Reg, PollingStatusMaskReg, PollingStatusMatchReg,
-                             PollingIntervalReg, LowPowerTimeoutReg>;
+                             AddressReg, AlternateBytesReg, Data8Reg, Data16Reg, Data32Reg, PollingStatusMaskReg,
+                             PollingStatusMatchReg, PollingIntervalReg, LowPowerTimeoutReg>;
 
 }  // namespace Hw::QuadSpi

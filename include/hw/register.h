@@ -33,17 +33,17 @@ consteval inline T generate_mask(RegOffset offset, RegNumBits num_bits) noexcept
 
 template <typename T>
 concept field = requires(T t) {
-  requires std::integral<std::remove_cvref_t<decltype(T::mask)>>;
-  requires std::same_as<std::remove_cvref_t<decltype(T::offset)>, RegOffset>;
-  { T::get_full_mask() } -> std::same_as<typename T::ParentType>;
-};
+                  requires std::integral<std::remove_cvref_t<decltype(T::mask)>>;
+                  requires std::same_as<std::remove_cvref_t<decltype(T::offset)>, RegOffset>;
+                  { T::get_full_mask() } -> std::same_as<typename T::ParentType>;
+                };
 
 template <typename T>
 concept indexed_field = requires(T t) {
-  requires field<T>;
-  requires std::same_as<std::remove_cvref_t<decltype(T::stride)>, FieldStride>;
-  requires std::same_as<std::remove_cvref_t<decltype(T::num_fields)>, NumFields>;
-};
+                          requires field<T>;
+                          requires std::same_as<std::remove_cvref_t<decltype(T::stride)>, FieldStride>;
+                          requires std::same_as<std::remove_cvref_t<decltype(T::num_fields)>, NumFields>;
+                        };
 
 }  // namespace detail
 
@@ -94,7 +94,8 @@ struct IndexedField final {
 };
 
 template <std::integral T, BlockOffset Offset, detail::field... Fields>
-requires((std::same_as<T, typename Fields::ParentType> && ...)) class Register final {
+  requires((std::same_as<T, typename Fields::ParentType> && ...))
+class Register final {
  private:
   template <detail::field Field>
   [[nodiscard]] static consteval bool validate_single_field() noexcept {
@@ -130,15 +131,15 @@ requires((std::same_as<T, typename Fields::ParentType> && ...)) class Register f
     WriteRegProxy& operator=(const WriteRegProxy&) = delete;
 
     template <typename Field>
-    requires(Ditto::one_of<Field, Fields...> &&
-             !detail::indexed_field<Field>) void write(typename Field::InnerType first_field) {
+      requires(Ditto::one_of<Field, Fields...> && !detail::indexed_field<Field>)
+    void write(typename Field::InnerType first_field) {
       m_value &= ~Field::mask;
       m_value |= Field::mask & (static_cast<T>(first_field) << static_cast<std::size_t>(Field::offset));
     }
 
     template <typename Field>
-    requires(Ditto::one_of<Field, Fields...>&& detail::indexed_field<Field>) void write(
-        RegIndex index, typename Field::InnerType field) {
+      requires(Ditto::one_of<Field, Fields...> && detail::indexed_field<Field>)
+    void write(RegIndex index, typename Field::InnerType field) {
       T mask = Field::mask << (static_cast<std::size_t>(index) * static_cast<std::size_t>(Field::stride));
       std::size_t offset = static_cast<size_t>(Field::offset) +
                            (static_cast<std::size_t>(index) * static_cast<std::size_t>(Field::stride));
@@ -164,14 +165,14 @@ requires((std::same_as<T, typename Fields::ParentType> && ...)) class Register f
     ReadRegProxy& operator=(const ReadRegProxy&) = delete;
 
     template <typename Field>
-    requires(Ditto::one_of<Field, Fields...> && !detail::indexed_field<Field>) [[nodiscard]] typename Field::InnerType
-        read() const {
+      requires(Ditto::one_of<Field, Fields...> && !detail::indexed_field<Field>)
+    [[nodiscard]] typename Field::InnerType read() const {
       return static_cast<typename Field::InnerType>((m_value & Field::mask) >> static_cast<std::size_t>(Field::offset));
     }
 
     template <typename Field>
-    requires(Ditto::one_of<Field, Fields...>&& detail::indexed_field<Field>) [[nodiscard]] typename Field::InnerType
-        read(RegIndex index) const {
+      requires(Ditto::one_of<Field, Fields...> && detail::indexed_field<Field>)
+    [[nodiscard]] typename Field::InnerType read(RegIndex index) const {
       T mask = Field::mask << (static_cast<std::size_t>(index) * static_cast<std::size_t>(Field::stride));
       std::size_t offset = static_cast<size_t>(Field::offset) +
                            (static_cast<std::size_t>(index) * static_cast<std::size_t>(Field::stride));
