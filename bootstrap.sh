@@ -34,8 +34,8 @@ DOWNLOAD_DIR=${PWD}/${TOOLS_DIR}/downloads
 
 LLVM_VERSION="16.0.0"
 
-OS=$(uname | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m| tr '[:upper:]' '[:lower:]')
+OS=$(uname)
+ARCH=$(uname -m)
 
 download_tool() {
     mkdir -p ${DOWNLOAD_DIR}
@@ -45,8 +45,8 @@ download_tool() {
 download_toolchain() {
     INSTALL_DIR=${TOOLCHAIN_DIR}
 
-    DIR_NAME=LLVMEmbeddedToolchainForArm-${LLVM_VERSION}
-    TAR_NAME=${DIR_NAME}-${OS}.tar.gz
+    DIR_NAME=LLVMEmbeddedToolchainForArm-${LLVM_VERSION}-${OS}-${ARCH}
+    TAR_NAME=${DIR_NAME}.tar.gz
     URL=https://github.com/ARM-software/LLVM-embedded-toolchain-for-Arm/releases/download/release-${LLVM_VERSION}/${TAR_NAME}
     download_tool ${URL}
 
