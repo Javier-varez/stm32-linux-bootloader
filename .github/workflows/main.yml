@@ -14,9 +14,9 @@ jobs:
     - name: checkout
       uses: actions/checkout@v2
     - name: clang-format lint
-      uses: DoozyX/clang-format-lint-action@v0.14
+      uses: DoozyX/clang-format-lint-action@v0.15
       with:
-        clangFormatVersion: 14
+        clangFormatVersion: 15
 
   build:
     runs-on: ubuntu-latest
