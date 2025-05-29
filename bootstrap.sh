@@ -36,6 +36,9 @@ LLVM_VERSION="16.0.0"
 
 OS=$(uname)
 ARCH=$(uname -m)
+if [[ "${ARCH}" -eq "aarch64" ]]; then
+    ARCH="AArch64"
+fi
 
 download_tool() {
     mkdir -p ${DOWNLOAD_DIR}
