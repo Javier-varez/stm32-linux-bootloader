@@ -8,7 +8,7 @@ on:
 
 jobs:
   clang_format:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: checkout
@@ -19,14 +19,14 @@ jobs:
         clangFormatVersion: 15
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - name: checkout
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - run: sudo apt install libtinfo5
+    - run: sudo apt update && sudo apt install libtinfo5
     - name: Install dependencies
       run: ./bootstrap.sh
     - name: Build with CMake
